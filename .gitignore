@@ -1,0 +1,40 @@
+# 의존성 (setup.ps1 으로 다시 만들면 되므로 동기화하지 않음)
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# 비밀값 (동기화 폴더의 env\ 에 따로 보관됨)
+.env
+.env.*
+!.env.example
+
+# 빌드 / 산출물
+dist/
+build/
+out/
+.next/
+*.egg-info/
+
+# 큰 자료는 동기화 폴더의 assets\ 로
+*.mp4
+*.mov
+*.avi
+*.iso
+*.zip
+*.7z
+*.exe
+*.msi
+
+# OS / 편집기
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# 인수인계 임시 파일 (ws handoff 가 소비 후 삭제)
+_handoff_body.md
