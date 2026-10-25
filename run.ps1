@@ -1,45 +1,15 @@
-﻿# glass-auto - 실행 스크립트
-# 두 PC 어디서든 이 파일 하나만 실행하면 되도록 유지하세요.
+﻿# glass-auto - 연결된 Pleos Connect 에뮬레이터(또는 Android 기기)에 APK를 설치하고 실행한다.
+# 먼저 Android Studio Device Manager 에서 Pleos Connect AVD 를 실행해 두세요.
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
+. (Join-Path $PSScriptRoot 'tools\android-env.ps1')
+Use-AndroidEnv
 
-# .env 를 환경변수로 읽어들이기
-if (Test-Path '.env') {
-    Get-Content '.env' -Encoding UTF8 | ForEach-Object {
-        $line = $_.Trim()
-        if ($line -and (-not $line.StartsWith('#')) -and $line.Contains('=')) {
-            $i = $line.IndexOf('=')
-            $k = $line.Substring(0, $i).Trim()
-            $v = $line.Substring($i + 1).Trim()
-            [Environment]::SetEnvironmentVariable($k, $v, 'Process')
-        }
-    }
-}
+$apk = Join-Path $PSScriptRoot 'apk\안도현_GlassAuto_release.apk'
+if (-not (Test-Path $apk)) { & (Join-Path $PSScriptRoot 'build-apk.ps1') }
 
-# --- 여기부터 프로젝트에 맞게 고치세요 ---------------------------------
+$devices = (& adb devices) | Select-Object -Skip 1 | Where-Object { $_ -match '\tdevice$' }
+if (-not $devices) { throw "연결된 에뮬레이터/기기가 없습니다. Pleos Connect AVD 를 먼저 실행하세요." }
 
-if (Test-Path 'package.json') {
-    $pkg = Get-Content 'package.json' -Raw -Encoding UTF8 | ConvertFrom-Json
-    if ($pkg.scripts -and $pkg.scripts.start) {
-        & npm run start
-        exit $LASTEXITCODE
-    }
-    if ($pkg.scripts -and $pkg.scripts.dev) {
-        & npm run dev
-        exit $LASTEXITCODE
-    }
-}
-
-$py = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
-if (-not (Test-Path $py)) { $py = 'python' }
-foreach ($entry in @('main.py', 'app.py', 'run.py')) {
-    if (Test-Path $entry) {
-        & $py $entry
-        exit $LASTEXITCODE
-    }
-}
-
-Write-Host ""
-Write-Host "  아직 실행 방법이 정해지지 않았습니다." -ForegroundColor Yellow
-Write-Host "  run.ps1 아래쪽에 실제 실행 명령을 적어주세요." -ForegroundColor Yellow
-Write-Host ""
+& adb install -r $apk
+& adb shell am start -n io.github.glassauto/.ui.MainActivity

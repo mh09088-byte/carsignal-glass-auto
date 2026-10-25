@@ -36,5 +36,15 @@ desktop.ini
 .idea/
 *.swp
 
+# Android / Gradle
+.gradle/
+local.properties
+app/build/
+captures/
+*.jks
+*.keystore
+*.apk
+!apk/*.apk
+
 # 인수인계 임시 파일 (ws handoff 가 소비 후 삭제)
 _handoff_body.md
