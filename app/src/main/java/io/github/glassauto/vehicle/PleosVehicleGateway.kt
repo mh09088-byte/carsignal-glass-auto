@@ -2,10 +2,18 @@ package io.github.glassauto.vehicle
 
 import ai.pleos.playground.vehicle.Vehicle
 import ai.pleos.playground.vehicle.api.model.area.SeatArea
+import ai.pleos.playground.vehicle.api.model.area.WheelArea
 import ai.pleos.playground.vehicle.api.model.area.WindowArea
+import ai.pleos.playground.vehicle.api.model.telltale.Telltales
 import ai.pleos.playground.vehicle.constant.area.SeatValue
+import ai.pleos.playground.vehicle.constant.area.WheelValue
 import ai.pleos.playground.vehicle.constant.area.WindowValue
+import ai.pleos.playground.vehicle.constant.control.OilLevelState
 import ai.pleos.playground.vehicle.constant.control.VehicleGear
+import ai.pleos.playground.vehicle.constant.telltale.TelltaleState
+import io.github.glassauto.core.FluidLevel
+import io.github.glassauto.core.HealthSnapshot
+import io.github.glassauto.core.Wheel
 import ai.pleos.playground.vehicle.listener.GearSelectionListener
 import ai.pleos.playground.vehicle.listener.SeatOccupancyListener
 import android.content.Context
@@ -97,6 +105,41 @@ class PleosVehicleGateway(private val context: Context) : VehicleGateway {
         // 경고: 밝기 최대 / 해제: 기본 밝기. 색상 값은 차량별 규격 확인 후 확장.
         v.getLight().setAmbientLightBrightness(SeatArea(SeatValue.ROW_1_LEFT), if (on) 100 else 40,
             { _, _ -> }, { e -> Log.w(TAG, "ambient", e) })
+    }
+
+    override fun readHealth(done: (HealthSnapshot) -> Unit) {
+        val v = vehicle ?: return done(HealthSnapshot())
+        var snap = HealthSnapshot()
+        val wheels = mapOf(WheelValue.LEFT_FRONT to Wheel.LEFT_FRONT, WheelValue.RIGHT_FRONT to Wheel.RIGHT_FRONT,
+            WheelValue.LEFT_REAR to Wheel.LEFT_REAR, WheelValue.RIGHT_REAR to Wheel.RIGHT_REAR)
+        var pending = 6 + wheels.size * 2   // 오일 3 + 워셔액 + 경고등 + 주행거리 + 바퀴별(공기압·기준) 2
+        // 비동기 IPC 응답을 모두 받으면(성공·실패 무관) 한 번만 돌려준다
+        val step: (HealthSnapshot.() -> HealthSnapshot) -> Unit = { f ->
+            main.post { snap = snap.f(); if (--pending == 0) done(snap) }
+        }
+        val fail: (Exception) -> Unit = { e -> Log.w(TAG, "health", e); step { this } }
+        val safety = v.getSafety()
+        safety.getEngineOilLevelState({ l: OilLevelState? -> step { copy(engineOil = l.toFluid()) } }, fail)
+        safety.getBrakeFluidLevelState({ l: OilLevelState? -> step { copy(brakeFluid = l.toFluid()) } }, fail)
+        safety.getTransmissionOilLevelState({ l: OilLevelState? -> step { copy(transmissionOil = l.toFluid()) } }, fail)
+        safety.hasLowWasherFluidWarning({ b: Boolean? -> step { copy(washerLow = b == true) } }, fail)
+        safety.getTelltalesInfo({ t: Telltales? ->
+            val on = t?.telltales.orEmpty().filter { it.state != TelltaleState.OFF }.map { it.type.name }.toSet()
+            step { copy(warningLights = on) }
+        }, fail)
+        wheels.forEach { (wv, w) ->
+            v.getTire().getTirePressure(WheelArea(wv), { p: Float? -> step { if (p == null) this else copy(tirePressure = tirePressure + (w to p)) } }, fail)
+            v.getTire().getLowTirePressure(WheelArea(wv), { p: Float? -> step { if (p == null) this else copy(tireLowThreshold = tireLowThreshold + (w to p)) } }, fail)
+        }
+        v.getOdometer().getCurrentDistanceDriven({ km: Float? -> step { copy(odometerKm = km) } }, fail)
+    }
+
+    private fun OilLevelState?.toFluid(): FluidLevel = when (this) {
+        OilLevelState.NORMAL -> FluidLevel.NORMAL
+        OilLevelState.LOW -> FluidLevel.LOW
+        OilLevelState.CRITICALLY_LOW -> FluidLevel.CRITICALLY_LOW
+        OilLevelState.HIGH -> FluidLevel.HIGH
+        else -> FluidLevel.UNKNOWN
     }
 
     private fun VehicleGear.toGear(): Gear = when (this) {

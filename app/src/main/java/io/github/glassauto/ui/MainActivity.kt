@@ -35,9 +35,11 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 
 /**
- * 글래스 오토 메인 화면. 상단 탭으로 서로 독립된 두 기능을 나눈다.
- *  - 유리(썬팅): 오토 틴트, 투과율 1% 세밀 조절, 법규 가드, 시야 우선, 프라이버시
- *  - 긴급차량: 접근 예고·볼륨 낮춤·조명 경고·양보 안내 (유리는 건드리지 않음)
+ * 카시그널 (글래스 오토) 메인 화면. 차 안팎의 '신호'를 읽어 주는 세 가지 현재 기능과 미래 기능.
+ *  - 긴급차량: 접근 예고·볼륨 낮춤·조명 경고·양보 안내
+ *  - 신호등: 남은 시간·초록불 통과 권장 속도
+ *  - 정비: 차량 자가 점검·경고등 해석·긴급도
+ *  - 스마트글라스(미래): 오토 틴트, 투과율 1% 조절 — 스마트글라스 탑재 차량 출시 후 도입
  */
 class MainActivity : Activity(), VehicleGateway.Listener {
 
@@ -68,11 +70,12 @@ class MainActivity : Activity(), VehicleGateway.Listener {
 
     // ---- 화면 ----
     private lateinit var content: FrameLayout
-    private lateinit var tabGlass: TextView
-    private lateinit var tabEm: TextView
+    private val tabs = mutableListOf<Triple<TextView, View, Int>>()   // 탭 버튼, 페이지, 강조색
     private lateinit var sourceText: TextView
     private lateinit var glassPage: View
     private lateinit var emPage: View
+    private lateinit var signalPage: SignalPage
+    private lateinit var maintPage: MaintenancePage
     private lateinit var carView: CarGlassView
     private lateinit var laneView: LaneView
     private lateinit var selName: TextView
@@ -93,28 +96,30 @@ class MainActivity : Activity(), VehicleGateway.Listener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.decorView.setBackgroundColor(Palette.BG)
+        // 차량 연결 객체를 먼저 만들고(화면이 참조), 화면을 그린 뒤 연결을 시작한다
+        gateway = if (PleosVehicleGateway.isAvailable(this)) PleosVehicleGateway(this) else SimulatedVehicleGateway()
+        alert = AlertController(this, { gateway })
+        simulator = EmergencySimulator(::onEmergencyTick)
         setContentView(buildRoot())
 
-        gateway = if (PleosVehicleGateway.isAvailable(this)) PleosVehicleGateway(this) else SimulatedVehicleGateway()
         runCatching { gateway.start(this) }.onFailure {
             gateway = SimulatedVehicleGateway().also { g -> g.start(this) }
         }
-        alert = AlertController(this, { gateway })
-        simulator = EmergencySimulator(::onEmergencyTick)
-        showTab(glass = true)
+        showTab(0)
         recompute()
         refreshEmergency()
+        maintPage.check()   // 시동 시 자동 점검
     }
 
     override fun onDestroy() {
-        simulator.stop(); alert.release(); runCatching { gateway.stop() }
+        simulator.stop(); signalPage.stop(); alert.release(); runCatching { gateway.stop() }
         super.onDestroy()
     }
 
     // ================= VehicleGateway.Listener =================
     override fun onCapabilities(caps: VehicleCapabilities) {
         this.caps = caps
-        val glass = if (caps.smartGlass.isEmpty()) "스마트글라스 없음 → 가상 유리 표시" else "스마트글라스 ${caps.smartGlass.size}면 제어"
+        val glass = if (caps.smartGlass.isEmpty()) "스마트글라스 미탑재(미래 기능은 가상 표시)" else "스마트글라스 ${caps.smartGlass.size}면 감지"
         sourceText.text = "차량 연결: ${caps.source} · $glass"
         sent.clear(); recompute()
     }
@@ -126,37 +131,41 @@ class MainActivity : Activity(), VehicleGateway.Listener {
     // ================= 화면 구성 =================
     private fun buildRoot(): View {
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(10), dp(16), dp(10)) }
-        tabGlass = pill("유리 (썬팅)") { showTab(true) }
-        tabEm = pill("긴급차량") { showTab(false) }
-        val title = label("Glass Auto", 22f, Palette.TEXT, true)
+        val title = label("카시그널 (글래스 오토)", 22f, Palette.TEXT, true)
         sourceText = label("차량 연결 확인 중…", 13f, Palette.MUTED)
-        val top = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-            addView(title, LinearLayout.LayoutParams(0, -2, 1f))
-            addView(tabGlass); addView(View(context), LinearLayout.LayoutParams(dp(8), 1)); addView(tabEm)
-        }
-        root.addView(top); root.addView(sourceText); root.addView(gap(this, 8))
 
         content = FrameLayout(this)
-        glassPage = buildGlassPage(); emPage = buildEmergencyPage()
-        content.addView(glassPage); content.addView(emPage)
+        emPage = buildEmergencyPage()
+        signalPage = SignalPage(this)
+        maintPage = MaintenancePage(this) { gateway }
+        glassPage = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(label("미래 기능 미리보기 · 스마트글라스 탑재 차량 출시 후 도입 예정 (현재 차량은 가상 유리로 표시)", 14f, Palette.AMBER, true))
+            addView(buildGlassPage(), LinearLayout.LayoutParams(-1, 0, 1f))
+        }
+        val pages = listOf(
+            Triple("긴급차량", emPage, Palette.RED),
+            Triple("신호등", signalPage.root, Palette.GREEN),
+            Triple("정비", maintPage.root, Palette.ACCENT),
+            Triple("스마트글라스 (미래)", glassPage, Palette.AMBER),
+        )
+        val tabRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        pages.forEachIndexed { i, (name, page, color) ->
+            val b = pill(name) { showTab(i) }
+            tabs += Triple(b, page, color)
+            tabRow.addView(b); tabRow.addView(View(this), LinearLayout.LayoutParams(dp(6), 1))
+            content.addView(page)
+        }
+        val top = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            addView(title, LinearLayout.LayoutParams(0, -2, 1f)); addView(tabRow)
+        }
+        root.addView(top); root.addView(sourceText); root.addView(gap(this, 8))
         root.addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
         return root
     }
 
-    private fun split(stage: View, side: View): View {
-        val wide = resources.displayMetrics.widthPixels > resources.displayMetrics.heightPixels
-        return LinearLayout(this).apply {
-            orientation = if (wide) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
-            if (wide) {
-                addView(stage, LinearLayout.LayoutParams(0, -1, 1f))
-                addView(ScrollView(context).apply { addView(side) }, LinearLayout.LayoutParams(0, -1, 1.1f))
-            } else {
-                addView(stage, LinearLayout.LayoutParams(-1, 0, 0.9f))
-                addView(ScrollView(context).apply { addView(side) }, LinearLayout.LayoutParams(-1, 0, 1.1f))
-            }
-        }
-    }
+    private fun split(stage: View, side: View): View = splitView(this, stage, side)
 
     private fun buildGlassPage(): View {
         carView = CarGlassView(this).apply { onSelect = { selected = it; this.selected = it; refreshSelected() } }
@@ -243,13 +252,13 @@ class MainActivity : Activity(), VehicleGateway.Listener {
         override fun onStopTrackingTouch(sb: SeekBar) = Unit
     }
 
-    private fun showTab(glass: Boolean) {
-        glassPage.visibility = if (glass) View.VISIBLE else View.GONE
-        emPage.visibility = if (glass) View.GONE else View.VISIBLE
-        tabGlass.background = rounded(if (glass) Palette.ACCENT else Palette.PANEL2, dp(12).toFloat(), Palette.LINE)
-        tabGlass.setTextColor(if (glass) Palette.INK else Palette.TEXT)
-        tabEm.background = rounded(if (!glass) Palette.RED else Palette.PANEL2, dp(12).toFloat(), Palette.LINE)
-        tabEm.setTextColor(Palette.TEXT)
+    private fun showTab(index: Int) {
+        tabs.forEachIndexed { i, (button, page, color) ->
+            val on = i == index
+            page.visibility = if (on) View.VISIBLE else View.GONE
+            button.background = rounded(if (on) color else Palette.PANEL2, dp(12).toFloat(), Palette.LINE)
+            button.setTextColor(if (on) Palette.INK else Palette.TEXT)
+        }
     }
 
     // ================= 유리 기능 =================

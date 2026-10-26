@@ -5,7 +5,7 @@ Set-Location -LiteralPath $PSScriptRoot
 . (Join-Path $PSScriptRoot 'tools\android-env.ps1')
 Use-AndroidEnv
 
-$apk = Join-Path $PSScriptRoot 'apk\안도현_GlassAuto_release.apk'
+$apk = Join-Path $PSScriptRoot 'apk\안도현_CarSignal_release.apk'
 if (-not (Test-Path $apk)) { & (Join-Path $PSScriptRoot 'build-apk.ps1') }
 
 $devices = (& adb devices) | Select-Object -Skip 1 | Where-Object { $_ -match '\tdevice$' }

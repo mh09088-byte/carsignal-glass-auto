@@ -22,6 +22,19 @@ class SimulatedVehicleGateway : VehicleGateway {
 
     override fun setAmbientWarning(on: Boolean) = Unit
 
+    /** 시연용 차량 상태. 정비 탭의 시뮬레이터 버튼으로 이상 상황을 켜고 끈다. */
+    var health = io.github.glassauto.core.HealthSnapshot(
+        engineOil = io.github.glassauto.core.FluidLevel.NORMAL,
+        brakeFluid = io.github.glassauto.core.FluidLevel.NORMAL,
+        transmissionOil = io.github.glassauto.core.FluidLevel.NORMAL,
+        tirePressure = io.github.glassauto.core.Wheel.entries.associateWith { 35f },
+        tireLowThreshold = io.github.glassauto.core.Wheel.entries.associateWith { 30f },
+        odometerKm = 28_450f,
+        lastOilChangeKm = 19_000f,
+    )
+
+    override fun readHealth(done: (io.github.glassauto.core.HealthSnapshot) -> Unit) = done(health)
+
     fun simulateGear(gear: Gear) = listener?.onGear(gear)
 
     fun simulateSeat(seat: SeatPos, occupied: Boolean) = listener?.onSeatOccupancy(seat, occupied)

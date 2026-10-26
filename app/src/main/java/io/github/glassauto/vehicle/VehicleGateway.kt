@@ -35,4 +35,7 @@ interface VehicleGateway {
 
     /** 긴급차량 기능용 실내 조명 경고. 유리와는 무관하다. */
     fun setAmbientWarning(on: Boolean)
+
+    /** 오토정비: 오일·워셔액·경고등·타이어·주행거리를 한 번에 읽는다 (Vehicle State SDK — 현재 사용 가능). */
+    fun readHealth(done: (io.github.glassauto.core.HealthSnapshot) -> Unit)
 }

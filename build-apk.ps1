@@ -15,6 +15,6 @@ if ($LASTEXITCODE -ne 0) { throw "빌드 실패" }
 # 공모전 제출 규칙: apk/팀명_앱이름_release.apk (개인 참가 → 팀명 = 성명)
 $out = Join-Path $PSScriptRoot 'apk'
 New-Item -ItemType Directory -Force $out | Out-Null
-$dest = Join-Path $out '안도현_GlassAuto_release.apk'
+$dest = Join-Path $out '안도현_CarSignal_release.apk'
 Copy-Item (Join-Path $PSScriptRoot 'app\build\outputs\apk\release\app-release.apk') $dest -Force
 Write-Host "   [OK] $dest" -ForegroundColor Green
