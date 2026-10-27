@@ -55,4 +55,5 @@ dependencies {
     implementation("ai.pleos.playground:Vehicle:2.3.2")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20231013")   // 단위 테스트에서 실제 JSON 파서 사용 (Android 스텁 대체)
 }

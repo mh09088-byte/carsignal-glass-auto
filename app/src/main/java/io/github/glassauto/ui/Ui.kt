@@ -70,4 +70,5 @@ fun Context.row(vararg children: View, weights: Boolean = true): LinearLayout = 
     }
 }
 
-fun gap(ctx: Context, h: Int = 12): View = View(ctx).apply { minimumHeight = ctx.dp(h) }
+// 높이를 고정한다. 크기 없는 View 는 WRAP_CONTENT 에서 남은 공간을 모두 차지해 아래 본문(weight)이 0 이 된다.
+fun gap(ctx: Context, h: Int = 12): View = View(ctx).apply { layoutParams = LinearLayout.LayoutParams(-1, ctx.dp(h)) }

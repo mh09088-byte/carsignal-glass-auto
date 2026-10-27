@@ -24,6 +24,7 @@ import io.github.glassauto.core.Reason
 import io.github.glassauto.core.SunEngine
 import io.github.glassauto.emergency.AlertController
 import io.github.glassauto.emergency.EmergencySimulator
+import io.github.glassauto.signal.LiveSignalClient
 import io.github.glassauto.vehicle.PleosVehicleGateway
 import io.github.glassauto.vehicle.SeatPos
 import io.github.glassauto.vehicle.SimulatedVehicleGateway
@@ -96,6 +97,7 @@ class MainActivity : Activity(), VehicleGateway.Listener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.decorView.setBackgroundColor(Palette.BG)
+        LiveSignalClient.saveKeys(this, intent?.extras)   // run.ps1 이 넘긴 공공 신호 API 키 (있을 때만)
         // 차량 연결 객체를 먼저 만들고(화면이 참조), 화면을 그린 뒤 연결을 시작한다
         gateway = if (PleosVehicleGateway.isAvailable(this)) PleosVehicleGateway(this) else SimulatedVehicleGateway()
         alert = AlertController(this, { gateway })
