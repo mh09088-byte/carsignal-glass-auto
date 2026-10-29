@@ -19,8 +19,8 @@ android {
         applicationId = "io.github.glassauto"
         minSdk = 28            // Pleos Connect 요구사항: API 28 이상
         targetSdk = 34
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.2.1"
     }
 
     signingConfigs {

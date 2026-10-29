@@ -5,13 +5,13 @@
 - **현재 기능 (지금 바로 구현 가능)**: ① 긴급차량 안내 ② 신호등 타임 ③ 오토정비
 - **미래 타겟 기능**: 스마트글라스 탑재 차량 출시 후 도입하는 **글래스 오토** (태양 추적 오토 틴트 · 투과율 1% 조절)
 
-> 현대자동차그룹 차량용 앱 개발 공모전 (Code your App into Pleos App Market) 출품작 · 프로토타입 v0.2.0
+> 현대자동차그룹 차량용 앱 개발 공모전 (Code your App into Pleos App Market) 출품작 · 프로토타입 v0.2.1
 
 | 제출물 | 위치 |
 |---|---|
-| **APK (release)** | [`apk/안도현_CarSignal_release.apk`](apk/) · [Releases v0.2.0](../../releases/tag/v0.2.0) |
-| 앱 화면 시안 (11종) | [Releases v0.2.0](../../releases/tag/v0.2.0) 첨부 `CarSignal_screens.pdf` · 미리보기 [`docs/screens/`](docs/screens/) |
-| 시연 영상 (나레이션 포함 목업) | [Releases v0.2.0](../../releases/tag/v0.2.0) 첨부 `CarSignal_demo.mp4` |
+| **APK (release)** | [`apk/`](apk/) 폴더 (공모전 파일명 규칙 `팀명_앱이름_release.apk`) · [Releases v0.2.1](../../releases/tag/v0.2.1) 첨부 `CarSignal_release.apk` (같은 파일) |
+| 앱 화면 시안 (11종) | [Releases v0.2.1](../../releases/tag/v0.2.1) 첨부 `CarSignal_screens.pdf` · 미리보기 [`docs/screens/`](docs/screens/) |
+| 시연 영상 (나레이션 포함 목업) | [Releases v0.2.1](../../releases/tag/v0.2.1) 첨부 `CarSignal_demo.mp4` |
 | 소스 코드 | 이 저장소 (`app/`) |
 
 | 긴급차량 · 300m 접근 안내 | 신호등 타임 · 초록불 통과 속도 | 오토정비 · 경고등 풀이 |
